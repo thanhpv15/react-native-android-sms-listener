@@ -26,7 +26,7 @@ public class SmsReceiver extends BroadcastReceiver {
         mContext = context;
     }
 
-    private void receiveMessage(SmsMessage message) {
+    private void receiveMessage(SmsMessage message, String subcription) {
         if (mContext == null) {
             return;
         }
@@ -44,6 +44,7 @@ public class SmsReceiver extends BroadcastReceiver {
 
         receivedMessage.putString("originatingAddress", message.getOriginatingAddress());
         receivedMessage.putString("body", message.getMessageBody());
+        receivedMessage.putString("subscription", subcription);
 
         mContext
             .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
@@ -52,9 +53,11 @@ public class SmsReceiver extends BroadcastReceiver {
 
     @Override
     public void onReceive(Context context, Intent intent) {
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+            final Bundle bundle = intent.getExtras();
             for (SmsMessage message : Telephony.Sms.Intents.getMessagesFromIntent(intent)) {
-                receiveMessage(message);
+                receiveMessage(message, String.valueOf(bundle.getInt("subscription", -1)));
             }
 
             return;
@@ -62,7 +65,7 @@ public class SmsReceiver extends BroadcastReceiver {
 
         try {
             final Bundle bundle = intent.getExtras();
-
+            
             if (bundle == null || ! bundle.containsKey("pdus")) {
                 return;
             }
@@ -70,7 +73,7 @@ public class SmsReceiver extends BroadcastReceiver {
             final Object[] pdus = (Object[]) bundle.get("pdus");
 
             for (Object pdu : pdus) {
-                receiveMessage(SmsMessage.createFromPdu((byte[]) pdu));
+                receiveMessage(SmsMessage.createFromPdu((byte[]) pdu), String.valueOf(bundle.getInt("subscription", -1)));
             }
         } catch (Exception e) {
             Log.e(SmsListenerPackage.TAG, e.getMessage());
